@@ -1,0 +1,331 @@
+{
+  "project": "Finance Invoice Approval Platform",
+  "branchName": "ralph/finance-invoice-approval",
+  "description": "Web platform where employees submit invoice reimbursement requests with supporting docs, finance reviews/approves/rejects/requests-more-info, and both sides can track request status and history.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Database schema and migrations",
+      "description": "As a developer, I need the core database tables so that user accounts, requests, documents, and status history can be persisted.",
+      "acceptanceCriteria": [
+        "PostgreSQL schema/migration creates `users` table: id, name, email (unique), password_hash, role ('requester'|'finance', default 'requester'), created_at",
+        "Migration creates `requests` table: id, requester_id (FK users), amount, currency, category, expense_date, description, status ('pending'|'approved'|'rejected'|'more_info_needed', default 'pending'), created_at, updated_at",
+        "Migration creates `request_documents` table: id, request_id (FK requests), file_name, file_path, file_size, uploaded_at",
+        "Migration creates `request_status_history` table: id, request_id (FK requests), status, reason, changed_by_user_id (FK users), changed_at",
+        "Migrations run successfully against a local PostgreSQL instance with no errors",
+        "Typecheck/lint passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "FastAPI project scaffold and configuration",
+      "description": "As a developer, I need a runnable FastAPI backend scaffold with environment-based configuration so that subsequent endpoints have a base to build on.",
+      "acceptanceCriteria": [
+        "FastAPI app starts successfully with `uvicorn` and responds to a `/health` endpoint with 200 OK",
+        "Database connection string, SMTP settings, upload directory path, and file size/count limits are read from environment variables (.env), not hardcoded",
+        "Project structure separates routers, models, and services into distinct modules",
+        "Typecheck/lint passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "User signup and login endpoints",
+      "description": "As an employee, I want to sign up and log in with email/password so that I have an authenticated identity in the system.",
+      "acceptanceCriteria": [
+        "POST /auth/signup creates a user with hashed password (e.g. bcrypt) and default role 'requester'",
+        "POST /auth/signup rejects duplicate emails with a clear 4xx error",
+        "POST /auth/login validates credentials and returns a JWT access token on success",
+        "POST /auth/login returns a generic error on invalid credentials without revealing whether the email exists",
+        "Tests pass",
+        "Typecheck/lint passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Auth dependency and role-based access control",
+      "description": "As a developer, I need a reusable auth dependency so that endpoints can require login and restrict finance-only routes.",
+      "acceptanceCriteria": [
+        "A FastAPI dependency validates the JWT from the Authorization header and returns the current user, or 401 if missing/invalid",
+        "A second dependency restricts access to users with role 'finance', returning 403 for 'requester' users",
+        "Both dependencies are unit tested with valid, missing, and invalid tokens",
+        "Tests pass",
+        "Typecheck/lint passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Create reimbursement request endpoint",
+      "description": "As a requester, I want an API endpoint to submit a new reimbursement request so that it is stored with status pending.",
+      "acceptanceCriteria": [
+        "POST /requests accepts amount, currency, category, expense_date, description from the authenticated requester",
+        "New request is inserted with status 'pending', requester_id set to the logged-in user",
+        "Validation rejects missing required fields with a clear 4xx error and message",
+        "Response includes the created request's id and status",
+        "Tests pass",
+        "Typecheck/lint passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Document upload for requests",
+      "description": "As a requester, I want to attach supporting documents to my request so that finance can review them.",
+      "acceptanceCriteria": [
+        "POST /requests/{id}/documents accepts one or more file uploads for a request owned by the current user",
+        "Server validates file type (PDF/JPG/PNG only) and rejects others with a clear 4xx error",
+        "Server validates file size (max 10MB per file) and file count (max 5 per request), rejecting violations with a clear 4xx error",
+        "Accepted files are saved to local disk under `/uploads/{request_id}/{filename}` and metadata is inserted into request_documents",
+        "GET /requests/{id}/documents/{doc_id} returns the file for download, restricted to the request's owner or a finance user",
+        "Tests pass",
+        "Typecheck/lint passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Email service utility and new-request notification",
+      "description": "As a system, I need to send an email to the finance team when a new request is submitted so that they know to review it.",
+      "acceptanceCriteria": [
+        "A reusable email-sending utility is added using SMTP settings from environment variables",
+        "When a request is created (US-005), an email is sent to the configured finance distribution address containing requester name, amount, category, and a link/reference to the request",
+        "Email sending failure is logged but does not raise an error or block the request creation response",
+        "Tests pass (email sending is mocked in tests)",
+        "Typecheck/lint passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Requester's own requests list and detail endpoints",
+      "description": "As a requester, I want API endpoints to list my own requests and view full details so that I can track their status.",
+      "acceptanceCriteria": [
+        "GET /requests/mine returns only requests belonging to the logged-in user, sorted by most recently updated first",
+        "GET /requests/{id} returns full request details, associated documents, and full status history, restricted to the request's owner or a finance user",
+        "Requesting another user's request as a non-owner, non-finance user returns 403",
+        "Tests pass",
+        "Typecheck/lint passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Finance pending requests endpoint",
+      "description": "As a finance team member, I want an API endpoint listing all pending and more-info-needed requests across all users so that I can review outstanding work.",
+      "acceptanceCriteria": [
+        "GET /requests/pending (finance-only) returns all requests with status 'pending' or 'more_info_needed' across all requesters",
+        "Each item includes requester name/email, amount, category, description, expense_date, status, created_at",
+        "Non-finance users receive 403",
+        "Tests pass",
+        "Typecheck/lint passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Finance all-requests (historic) endpoint with filters",
+      "description": "As a finance team member, I want an API endpoint listing all requests regardless of status, filterable by requester/status/category/date, so that I have a full audit trail.",
+      "acceptanceCriteria": [
+        "GET /requests (finance-only) returns all requests regardless of status",
+        "Supports query params: requester_id, status, category, date_from, date_to, applying filters server-side",
+        "Non-finance users receive 403",
+        "Tests pass",
+        "Typecheck/lint passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Finance review action endpoint (approve/reject/request more info)",
+      "description": "As a finance team member, I want an endpoint to approve, reject, or request more info on a request with a reason, so that the decision and rationale are recorded.",
+      "acceptanceCriteria": [
+        "POST /requests/{id}/review (finance-only) accepts action ('approve'|'reject'|'more_info') and an optional/required reason field",
+        "Reason is required (400 if missing) when action is 'reject' or 'more_info'; optional for 'approve'",
+        "Request status is updated accordingly ('approved', 'rejected', or 'more_info_needed')",
+        "A row is appended to request_status_history with status, reason, changed_by_user_id, changed_at",
+        "Non-finance users receive 403",
+        "Tests pass",
+        "Typecheck/lint passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Status-change email notification to requester",
+      "description": "As a requester, I want to receive an email when finance changes my request's status so that I know the outcome without checking the UI.",
+      "acceptanceCriteria": [
+        "When a finance review action (US-011) completes, an email is sent to the requester with the new status and the reason/comment provided",
+        "Email sending failure is logged but does not block the review action response",
+        "Tests pass (email sending is mocked in tests)",
+        "Typecheck/lint passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Resubmission endpoint for more-info-needed requests",
+      "description": "As a requester, I want to update and resubmit a request that finance marked as needing more info so that it goes back into the review queue.",
+      "acceptanceCriteria": [
+        "POST /requests/{id}/resubmit (owner-only) allows updating description and/or adding additional documents, only when current status is 'more_info_needed'",
+        "On resubmit, status reverts to 'pending' and a status_history entry is appended noting resubmission",
+        "Attempting to resubmit a request not in 'more_info_needed' status returns a 4xx error",
+        "Tests pass",
+        "Typecheck/lint passes"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "React app scaffold, routing, and auth pages",
+      "description": "As an employee, I want to sign up and log in through a web UI so that I can access the platform.",
+      "acceptanceCriteria": [
+        "React app scaffold set up with routing (e.g. react-router) and an auth context storing the logged-in user/JWT",
+        "Login page with email/password form, calls POST /auth/login, stores token, redirects to the appropriate home view",
+        "Signup page with name/email/password form, calls POST /auth/signup, then redirects to login",
+        "Logout clears the stored token and redirects to login",
+        "Protected routes redirect unauthenticated users to the login page",
+        "Typecheck/lint passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "New Request submission form (UI)",
+      "description": "As a requester, I want a form to submit a new reimbursement request with supporting documents so that finance can review it.",
+      "acceptanceCriteria": [
+        "Form includes fields: amount, currency, category (dropdown), expense date, description, and a file upload control (multi-file)",
+        "Client-side validation blocks submission when required fields are missing or an invalid file type/size is selected",
+        "On submit, calls POST /requests then uploads documents via POST /requests/{id}/documents",
+        "On success, shows a confirmation message with the new request's id/status and navigates to 'My Requests'",
+        "Typecheck/lint passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "My Requests list page (UI)",
+      "description": "As a requester, I want to see a list of my submitted requests with their status so that I know what's pending, approved, or rejected.",
+      "acceptanceCriteria": [
+        "Page calls GET /requests/mine and lists date submitted, amount, category, truncated description, and a colored status badge (pending=amber, approved=green, rejected=red, more_info_needed=blue)",
+        "List is sorted by most recently updated first",
+        "Empty state message shown when the user has no requests",
+        "Clicking a row navigates to the request detail view",
+        "Typecheck/lint passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Request detail view (shared component)",
+      "description": "As a user, I want a detail view showing full request info, documents, and status history so that I understand the complete context of a request.",
+      "acceptanceCriteria": [
+        "Component calls GET /requests/{id} and displays all fields, a downloadable list of documents, and the full status history (status, reason, changed_by, timestamp) in chronological order",
+        "Component is reused by both the requester's 'My Requests' detail and the finance review screens",
+        "Typecheck/lint passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Resubmit UI for more-info-needed requests",
+      "description": "As a requester, I want to edit and resubmit a request that finance flagged as needing more info so that it re-enters the review queue.",
+      "acceptanceCriteria": [
+        "When viewing a request with status 'more_info_needed' as its owner, the detail view shows an editable description field and an add-documents control",
+        "Submitting calls POST /requests/{id}/resubmit and, on success, updates the displayed status to 'pending'",
+        "Resubmit controls are hidden for any other status or for non-owners",
+        "Typecheck/lint passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Finance Pending Requests dashboard (UI)",
+      "description": "As a finance team member, I want a dashboard of all pending and more-info-needed requests across all users so that I can review outstanding work.",
+      "acceptanceCriteria": [
+        "Page (finance-only route) calls GET /requests/pending and lists requester name/email, date submitted, amount, category, truncated description, and status badge",
+        "List supports sorting/filtering by requester, category, and date submitted",
+        "Clicking a row navigates to the request detail/review view",
+        "Non-finance users attempting to access this route are redirected away",
+        "Typecheck/lint passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Finance All Requests (historic) dashboard (UI)",
+      "description": "As a finance team member, I want to see all requests regardless of status, filterable by requester/status/category/date, so that I have a complete audit trail.",
+      "acceptanceCriteria": [
+        "Page (finance-only route) calls GET /requests and lists all requests with filter controls for requester, status, category, and date range",
+        "Filters apply via query params and update the displayed list without a full page reload",
+        "Clicking a row navigates to the request detail view",
+        "Typecheck/lint passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Finance review actions UI (approve/reject/request more info)",
+      "description": "As a finance team member, I want to approve, reject, or request more info directly from the request detail view, with a reason, so that the requester is informed of the decision.",
+      "acceptanceCriteria": [
+        "Request detail view shows Approve, Reject, and Request More Info buttons only when viewed by a finance user and the request is pending or more_info_needed",
+        "Reject and Request More Info require entering a reason before the action can be submitted; Approve allows an optional comment",
+        "Submitting calls POST /requests/{id}/review and updates the displayed status and status history immediately on success",
+        "Typecheck/lint passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

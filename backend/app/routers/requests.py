@@ -3,13 +3,14 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies import get_current_user
-from app.models import Request, RequestDocument, User, UserRole
+from app.dependencies import get_current_user, require_finance_user
+from app.models import Request, RequestDocument, RequestStatus, User, UserRole
 from app.schemas import (
     RequestCreate,
     RequestDetailResponse,
     RequestDocumentResponse,
     RequestResponse,
+    RequestWithRequesterResponse,
 )
 from app.services.email import send_new_request_notification
 from app.services.storage import save_request_document, validate_upload_batch
@@ -64,6 +65,27 @@ def list_my_requests(
         .order_by(Request.updated_at.desc())
         .all()
     )
+
+
+@router.get("/pending", response_model=list[RequestWithRequesterResponse])
+def list_pending_requests(
+    current_user: User = Depends(require_finance_user),
+    db: Session = Depends(get_db),
+) -> list[RequestWithRequesterResponse]:
+    requests = (
+        db.query(Request)
+        .filter(Request.status.in_([RequestStatus.pending, RequestStatus.more_info_needed]))
+        .order_by(Request.created_at.desc())
+        .all()
+    )
+    return [
+        RequestWithRequesterResponse(
+            **RequestResponse.model_validate(request).model_dump(),
+            requester_name=request.requester.name,
+            requester_email=request.requester.email,
+        )
+        for request in requests
+    ]
 
 
 @router.get("/{request_id}", response_model=RequestDetailResponse)

@@ -78,3 +78,8 @@ class RequestStatusHistoryResponse(BaseModel):
 class RequestDetailResponse(RequestResponse):
     documents: list[RequestDocumentResponse]
     status_history: list[RequestStatusHistoryResponse]
+
+
+class RequestWithRequesterResponse(RequestResponse):
+    requester_name: str
+    requester_email: str

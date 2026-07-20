@@ -53,3 +53,13 @@ class RequestResponse(BaseModel):
     status: RequestStatus
     created_at: datetime
     updated_at: datetime
+
+
+class RequestDocumentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    request_id: int
+    file_name: str
+    file_size: int
+    uploaded_at: datetime

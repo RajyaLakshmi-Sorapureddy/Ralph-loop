@@ -7,6 +7,7 @@ import SignupPage from './pages/SignupPage';
 import RequesterHomePage from './pages/RequesterHomePage';
 import FinanceHomePage from './pages/FinanceHomePage';
 import NewRequestPage from './pages/NewRequestPage';
+import RequestDetailPage from './pages/RequestDetailPage';
 
 function HomeRedirect() {
   const { user } = useAuth();
@@ -40,6 +41,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <NewRequestPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/requests/:requestId"
+          element={
+            <ProtectedRoute>
+              <RequestDetailPage />
             </ProtectedRoute>
           }
         />

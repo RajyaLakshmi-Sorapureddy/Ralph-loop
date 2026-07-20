@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from datetime import date
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -78,6 +80,39 @@ def list_pending_requests(
         .order_by(Request.created_at.desc())
         .all()
     )
+    return [
+        RequestWithRequesterResponse(
+            **RequestResponse.model_validate(request).model_dump(),
+            requester_name=request.requester.name,
+            requester_email=request.requester.email,
+        )
+        for request in requests
+    ]
+
+
+@router.get("", response_model=list[RequestWithRequesterResponse])
+def list_all_requests(
+    requester_id: int | None = Query(None),
+    status_filter: RequestStatus | None = Query(None, alias="status"),
+    category: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    current_user: User = Depends(require_finance_user),
+    db: Session = Depends(get_db),
+) -> list[RequestWithRequesterResponse]:
+    query = db.query(Request)
+    if requester_id is not None:
+        query = query.filter(Request.requester_id == requester_id)
+    if status_filter is not None:
+        query = query.filter(Request.status == status_filter)
+    if category is not None:
+        query = query.filter(Request.category == category)
+    if date_from is not None:
+        query = query.filter(Request.expense_date >= date_from)
+    if date_to is not None:
+        query = query.filter(Request.expense_date <= date_to)
+
+    requests = query.order_by(Request.created_at.desc()).all()
     return [
         RequestWithRequesterResponse(
             **RequestResponse.model_validate(request).model_dump(),

@@ -216,6 +216,11 @@ button {
   cursor: not-allowed;
 }
 
+.resubmit-form {
+  margin-top: 24px;
+  max-width: 480px;
+}
+
 .request-table {
   width: 100%;
   border-collapse: collapse;

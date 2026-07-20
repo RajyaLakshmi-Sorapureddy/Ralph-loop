@@ -1,3 +1,4 @@
+import enum
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -83,3 +84,14 @@ class RequestDetailResponse(RequestResponse):
 class RequestWithRequesterResponse(RequestResponse):
     requester_name: str
     requester_email: str
+
+
+class ReviewActionType(str, enum.Enum):
+    approve = "approve"
+    reject = "reject"
+    more_info = "more_info"
+
+
+class ReviewRequest(BaseModel):
+    action: ReviewActionType
+    reason: str | None = None

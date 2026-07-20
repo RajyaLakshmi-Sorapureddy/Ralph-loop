@@ -6,18 +6,26 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user, require_finance_user
-from app.models import Request, RequestDocument, RequestStatus, User, UserRole
+from app.models import Request, RequestDocument, RequestStatus, RequestStatusHistory, User, UserRole
 from app.schemas import (
     RequestCreate,
     RequestDetailResponse,
     RequestDocumentResponse,
     RequestResponse,
     RequestWithRequesterResponse,
+    ReviewActionType,
+    ReviewRequest,
 )
 from app.services.email import send_new_request_notification
 from app.services.storage import save_request_document, validate_upload_batch
 
 router = APIRouter(prefix="/requests", tags=["requests"])
+
+_REVIEW_ACTION_TO_STATUS: dict[ReviewActionType, RequestStatus] = {
+    ReviewActionType.approve: RequestStatus.approved,
+    ReviewActionType.reject: RequestStatus.rejected,
+    ReviewActionType.more_info: RequestStatus.more_info_needed,
+}
 
 
 def _get_request_or_404(db: Session, request_id: int) -> Request:
@@ -198,3 +206,33 @@ def download_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
     return FileResponse(document.file_path, filename=document.file_name)
+
+
+@router.post("/{request_id}/review", response_model=RequestDetailResponse)
+def review_request(
+    request_id: int,
+    payload: ReviewRequest,
+    current_user: User = Depends(require_finance_user),
+    db: Session = Depends(get_db),
+) -> Request:
+    request = _get_request_or_404(db, request_id)
+
+    if payload.action in (ReviewActionType.reject, ReviewActionType.more_info) and not payload.reason:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="reason is required for reject and more_info actions",
+        )
+
+    new_status = _REVIEW_ACTION_TO_STATUS[payload.action]
+    request.status = new_status
+    db.add(
+        RequestStatusHistory(
+            request_id=request.id,
+            status=new_status,
+            reason=payload.reason,
+            changed_by_user_id=current_user.id,
+        )
+    )
+    db.commit()
+    db.refresh(request)
+    return request

@@ -1,3 +1,23 @@
 # Ralph Progress Log
 Started: Mon, Jul 20, 2026  2:04:29 PM
 ---
+
+## Codebase Patterns
+- Backend lives in `backend/` (Python/FastAPI + SQLAlchemy 2.0 + Alembic + PostgreSQL). Repo root has no top-level src; each subsystem gets its own folder (`backend/`, later `frontend/`).
+- Python venv is at `backend/.venv` (gitignored). Activate with `source backend/.venv/Scripts/activate` (Git Bash on Windows) before running pip/alembic/ruff/mypy.
+- DB config is env-driven: `backend/app/config.py` reads `DATABASE_URL` from `backend/.env` (gitignored; `.env.example` is committed as the template). Local Postgres 18 is running as a Windows service; `postgres`/`postgres` is the local dev superuser login (databases: `finance_invoice_approval` for dev, `finance_invoice_approval_test` for tests).
+- SQLAlchemy models live in `backend/app/models.py` on a shared `Base` from `backend/app/database.py`. Alembic's `migrations/env.py` imports `app.models` and sets `target_metadata = Base.metadata` so `alembic revision --autogenerate` picks up model changes automatically. `env.py` also overrides `sqlalchemy.url` from `app.config.settings` at runtime, so `alembic.ini`'s `sqlalchemy.url` is intentionally left blank.
+- Gotcha: Postgres ENUM columns (SQLAlchemy `Enum`) are NOT dropped automatically by `op.drop_table` when the enum is shared across multiple tables (autogenerate's downgrade only drops tables). Any migration that creates a `sa.Enum` must add explicit `sa.Enum(name='...').drop(op.get_bind(), checkfirst=False)` calls at the end of `downgrade()`, after all tables using that enum are dropped — otherwise re-running upgrade after downgrade fails with `DuplicateObject: type "..." already exists`. Verified by round-tripping upgrade -> downgrade -> upgrade.
+- Lint/typecheck tooling: `backend/requirements-dev.txt` adds `ruff` and `mypy` on top of `requirements.txt`. Run `ruff check app migrations` and `mypy app` from `backend/` (with venv active) as the "typecheck/lint passes" gate for backend stories.
+- Enum/status defaults: model-level Python `default=` (SQLAlchemy-side) is paired with `server_default=` (DB-side) so both ORM inserts and raw SQL/direct DB writes get the same default (e.g. `User.role` defaults to `requester`, `Request.status` defaults to `pending`).
+---
+
+## Mon, Jul 20, 2026 - US-001
+- Implemented the core PostgreSQL schema and Alembic migration setup for the Finance Invoice Approval Platform: `users`, `requests`, `request_documents`, and `request_status_history` tables, matching all four AC field lists exactly (including FKs, unique email index, and status/role enums with defaults).
+- Files changed: `backend/requirements.txt`, `backend/requirements-dev.txt`, `backend/.env.example`, `backend/.gitignore`, `backend/app/__init__.py`, `backend/app/config.py`, `backend/app/database.py`, `backend/app/models.py`, `backend/alembic.ini`, `backend/migrations/env.py`, `backend/migrations/versions/8f1622b03393_create_core_tables.py`.
+- Verified: created local Postgres databases `finance_invoice_approval` (dev) and `finance_invoice_approval_test` (test); ran `alembic upgrade head` cleanly against both, confirmed table/column/FK shapes via `psql \d`, round-tripped `upgrade -> downgrade -> upgrade` successfully, and confirmed a follow-up `alembic revision --autogenerate` produces an empty diff (models match the migration exactly). `ruff check` and `mypy` both pass with zero issues.
+- **Learnings for future iterations:**
+  - See "Codebase Patterns" at the top of this file for the enum-drop gotcha, env/config wiring, and lint/typecheck commands — read that section before starting US-002 onward.
+  - No FastAPI app exists yet (that's US-002) — only the SQLAlchemy models/migrations layer. US-002 should build the app package around `backend/app/database.py`'s `get_db()` dependency and `backend/app/config.py`'s `settings`.
+  - `backend/.env` (real, gitignored) already points at `finance_invoice_approval`; a second `finance_invoice_approval_test` DB exists for future test-suite use (e.g. pytest fixtures) but nothing wires to it yet.
+---

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api, ApiError } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
@@ -103,6 +103,9 @@ export default function FinanceHomePage() {
     <div>
       <div className="page-header">
         <h1>Pending Requests</h1>
+        <Link to="/finance/all-requests" className="button-link">
+          All Requests
+        </Link>
       </div>
       {error && (
         <p className="form-error" role="alert">

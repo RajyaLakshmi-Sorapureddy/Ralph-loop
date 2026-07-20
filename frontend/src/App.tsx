@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import RequesterHomePage from './pages/RequesterHomePage';
 import FinanceHomePage from './pages/FinanceHomePage';
+import FinanceAllRequestsPage from './pages/FinanceAllRequestsPage';
 import NewRequestPage from './pages/NewRequestPage';
 import RequestDetailPage from './pages/RequestDetailPage';
 
@@ -57,6 +58,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute requireRole="finance">
               <FinanceHomePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/finance/all-requests"
+          element={
+            <ProtectedRoute requireRole="finance">
+              <FinanceAllRequestsPage />
             </ProtectedRoute>
           }
         />

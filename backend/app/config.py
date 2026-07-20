@@ -23,5 +23,9 @@ class Settings:
     max_file_size_mb: int = int(os.getenv("MAX_FILE_SIZE_MB", "10"))
     max_files_per_request: int = int(os.getenv("MAX_FILES_PER_REQUEST", "5"))
 
+    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", "change-me-in-production")
+    jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
+    jwt_expire_minutes: int = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
+
 
 settings = Settings()

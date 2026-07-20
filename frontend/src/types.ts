@@ -48,3 +48,8 @@ export interface RequestDetail extends ReimbursementRequest {
   documents: RequestDocument[];
   status_history: RequestStatusHistoryEntry[];
 }
+
+export interface RequestWithRequester extends ReimbursementRequest {
+  requester_name: string;
+  requester_email: string;
+}

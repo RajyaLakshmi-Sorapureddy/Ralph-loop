@@ -11,7 +11,6 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, options: RequestInit, token?: string | null): Promise<T> {
   const headers = new Headers(options.headers);
-  headers.set('Content-Type', 'application/json');
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
@@ -38,5 +37,11 @@ async function request<T>(path: string, options: RequestInit, token?: string | n
 export const api = {
   get: <T,>(path: string, token?: string | null) => request<T>(path, { method: 'GET' }, token),
   post: <T,>(path: string, body: unknown, token?: string | null) =>
-    request<T>(path, { method: 'POST', body: JSON.stringify(body) }, token),
+    request<T>(
+      path,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+      token,
+    ),
+  postForm: <T,>(path: string, formData: FormData, token?: string | null) =>
+    request<T>(path, { method: 'POST', body: formData }, token),
 };

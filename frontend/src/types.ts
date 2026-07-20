@@ -53,3 +53,5 @@ export interface RequestWithRequester extends ReimbursementRequest {
   requester_name: string;
   requester_email: string;
 }
+
+export type ReviewActionType = 'approve' | 'reject' | 'more_info';

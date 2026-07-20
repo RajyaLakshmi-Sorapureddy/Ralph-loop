@@ -376,3 +376,60 @@ button {
 .link-button:hover {
   color: var(--accent-hover);
 }
+
+.review-actions {
+  margin-top: 24px;
+  max-width: 480px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.review-actions h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.review-actions-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.review-action-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  color: #fff;
+}
+
+.review-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.review-action-approve {
+  background: var(--success);
+}
+
+.review-action-approve:hover:not(:disabled) {
+  background: #15602f;
+}
+
+.review-action-reject {
+  background: var(--danger);
+}
+
+.review-action-reject:hover:not(:disabled) {
+  background: #8f1e18;
+}
+
+.review-action-more-info {
+  background: var(--accent);
+}
+
+.review-action-more-info:hover:not(:disabled) {
+  background: var(--accent-hover);
+}

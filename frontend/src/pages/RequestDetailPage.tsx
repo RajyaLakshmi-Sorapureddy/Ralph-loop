@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import RequestDetail from '../components/RequestDetail';
 import ResubmitForm from '../components/ResubmitForm';
+import ReviewActions from '../components/ReviewActions';
 import { useAuth } from '../context/AuthContext';
 
 export default function RequestDetailPage() {
@@ -18,11 +19,16 @@ export default function RequestDetailPage() {
 
   return (
     <RequestDetail requestId={id}>
-      {({ request, refetch }) =>
-        request.status === 'more_info_needed' && user?.id === request.requester_id ? (
-          <ResubmitForm request={request} onResubmitted={refetch} />
-        ) : null
-      }
+      {({ request, refetch }) => (
+        <>
+          {request.status === 'more_info_needed' && user?.id === request.requester_id ? (
+            <ResubmitForm request={request} onResubmitted={refetch} />
+          ) : null}
+          {user?.role === 'finance' && (request.status === 'pending' || request.status === 'more_info_needed') ? (
+            <ReviewActions request={request} onReviewed={refetch} />
+          ) : null}
+        </>
+      )}
     </RequestDetail>
   );
 }

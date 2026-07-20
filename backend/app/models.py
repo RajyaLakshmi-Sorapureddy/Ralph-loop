@@ -71,7 +71,9 @@ class Request(Base):
         back_populates="request", cascade="all, delete-orphan"
     )
     status_history: Mapped[list["RequestStatusHistory"]] = relationship(
-        back_populates="request", cascade="all, delete-orphan"
+        back_populates="request",
+        cascade="all, delete-orphan",
+        order_by="RequestStatusHistory.changed_at",
     )
 
 

@@ -63,3 +63,18 @@ class RequestDocumentResponse(BaseModel):
     file_name: str
     file_size: int
     uploaded_at: datetime
+
+
+class RequestStatusHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    status: RequestStatus
+    reason: str | None
+    changed_by_user_id: int
+    changed_at: datetime
+
+
+class RequestDetailResponse(RequestResponse):
+    documents: list[RequestDocumentResponse]
+    status_history: list[RequestStatusHistoryResponse]

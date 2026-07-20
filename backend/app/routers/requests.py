@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Request, RequestDocument, User, UserRole
-from app.schemas import RequestCreate, RequestDocumentResponse, RequestResponse
+from app.schemas import (
+    RequestCreate,
+    RequestDetailResponse,
+    RequestDocumentResponse,
+    RequestResponse,
+)
 from app.services.email import send_new_request_notification
 from app.services.storage import save_request_document, validate_upload_batch
 
@@ -45,6 +50,34 @@ def create_request(
         request_id=request.id,
     )
 
+    return request
+
+
+@router.get("/mine", response_model=list[RequestResponse])
+def list_my_requests(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[Request]:
+    return (
+        db.query(Request)
+        .filter(Request.requester_id == current_user.id)
+        .order_by(Request.updated_at.desc())
+        .all()
+    )
+
+
+@router.get("/{request_id}", response_model=RequestDetailResponse)
+def get_request_detail(
+    request_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Request:
+    request = _get_request_or_404(db, request_id)
+    if request.requester_id != current_user.id and current_user.role != UserRole.finance:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this request",
+        )
     return request
 
 

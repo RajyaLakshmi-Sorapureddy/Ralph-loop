@@ -10,6 +10,8 @@ Started: Mon, Jul 20, 2026  2:04:29 PM
 - Gotcha: Postgres ENUM columns (SQLAlchemy `Enum`) are NOT dropped automatically by `op.drop_table` when the enum is shared across multiple tables (autogenerate's downgrade only drops tables). Any migration that creates a `sa.Enum` must add explicit `sa.Enum(name='...').drop(op.get_bind(), checkfirst=False)` calls at the end of `downgrade()`, after all tables using that enum are dropped — otherwise re-running upgrade after downgrade fails with `DuplicateObject: type "..." already exists`. Verified by round-tripping upgrade -> downgrade -> upgrade.
 - Lint/typecheck tooling: `backend/requirements-dev.txt` adds `ruff` and `mypy` on top of `requirements.txt`. Run `ruff check app migrations` and `mypy app` from `backend/` (with venv active) as the "typecheck/lint passes" gate for backend stories.
 - Enum/status defaults: model-level Python `default=` (SQLAlchemy-side) is paired with `server_default=` (DB-side) so both ORM inserts and raw SQL/direct DB writes get the same default (e.g. `User.role` defaults to `requester`, `Request.status` defaults to `pending`).
+- App structure: `backend/app/main.py` is the FastAPI entrypoint (`uvicorn app.main:app`); route handlers live in `backend/app/routers/<name>.py` as `APIRouter` instances included from `main.py`; cross-cutting business logic (email, file storage, etc.) goes in `backend/app/services/<name>.py`. `app/models.py` stays SQLAlchemy-only.
+- `backend/app/config.py`'s `Settings` class is the single source of truth for all env-driven config (DB URL, SMTP, upload dir, file size/count limits) — add new settings there with an `os.getenv(..., default)` fallback, and mirror the key in both `.env` and `.env.example`.
 ---
 
 ## Mon, Jul 20, 2026 - US-001
@@ -20,4 +22,14 @@ Started: Mon, Jul 20, 2026  2:04:29 PM
   - See "Codebase Patterns" at the top of this file for the enum-drop gotcha, env/config wiring, and lint/typecheck commands — read that section before starting US-002 onward.
   - No FastAPI app exists yet (that's US-002) — only the SQLAlchemy models/migrations layer. US-002 should build the app package around `backend/app/database.py`'s `get_db()` dependency and `backend/app/config.py`'s `settings`.
   - `backend/.env` (real, gitignored) already points at `finance_invoice_approval`; a second `finance_invoice_approval_test` DB exists for future test-suite use (e.g. pytest fixtures) but nothing wires to it yet.
+---
+
+## Mon, Jul 20, 2026 - US-002
+- Implemented the FastAPI project scaffold: `backend/app/main.py` (app entrypoint, includes routers), `backend/app/routers/health.py` (GET /health -> 200 {"status": "ok"}), empty `backend/app/routers/__init__.py` and `backend/app/services/__init__.py` packages for future route/service modules. Expanded `backend/app/config.py`'s `Settings` with SMTP host/port/username/password/from-email/use-tls, finance notification email, upload directory, and max file size/count limits, all env-driven with sane defaults; mirrored the new keys into `backend/.env.example` and `backend/.env`. Added `fastapi==0.115.6` and `uvicorn[standard]==0.34.0` to `requirements.txt`.
+- Files changed: `backend/app/main.py` (new), `backend/app/routers/__init__.py` (new), `backend/app/routers/health.py` (new), `backend/app/services/__init__.py` (new), `backend/app/config.py`, `backend/.env.example`, `backend/.env`, `backend/requirements.txt`.
+- Verified: ran `uvicorn app.main:app --port 8123` locally and confirmed `curl http://127.0.0.1:8123/health` returns `200 {"status":"ok"}`. `ruff check app migrations` and `mypy app` both pass with zero issues.
+- **Learnings for future iterations:**
+  - See updated "Codebase Patterns" at the top of this file for the routers/services module convention and the config-settings convention — both apply starting with US-003.
+  - US-003 (auth endpoints) should add `backend/app/routers/auth.py` and a password-hashing/JWT helper likely under `backend/app/services/` or a new `app/auth.py` core module; no auth dependency exists yet (that's US-004).
+  - No pytest setup exists yet — US-003 is the first story requiring "Tests pass", so it should also add pytest + a test DB fixture wired to the existing `finance_invoice_approval_test` database (see US-001 learnings) and a `requirements-dev.txt` entry for `pytest`/`httpx` (TestClient dependency) if not already pulled in transitively by fastapi.
 ---

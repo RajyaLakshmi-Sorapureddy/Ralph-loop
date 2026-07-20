@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -188,3 +190,42 @@ def test_review_unknown_request_returns_404(client: TestClient, db_session: Sess
     )
 
     assert response.status_code == 404
+
+
+def test_review_sends_status_change_notification(client: TestClient, db_session: Session) -> None:
+    token = _signup_and_login(client, email="notify-review@example.com")
+    request_id = _create_request(client, token)
+
+    finance_user = _make_finance_user(db_session)
+    finance_token = create_access_token(subject=str(finance_user.id))
+
+    with patch("app.routers.requests.send_status_change_notification") as mock_notify:
+        response = client.post(
+            f"/requests/{request_id}/review",
+            json={"action": "reject", "reason": "Missing receipt"},
+            headers=_auth_headers(finance_token),
+        )
+
+    assert response.status_code == 200
+    mock_notify.assert_called_once()
+    _, kwargs = mock_notify.call_args
+    assert kwargs["requester_email"] == "notify-review@example.com"
+    assert kwargs["new_status"] == "rejected"
+    assert kwargs["reason"] == "Missing receipt"
+
+
+def test_review_succeeds_even_if_email_send_fails(client: TestClient, db_session: Session) -> None:
+    token = _signup_and_login(client, email="review-email-fails@example.com")
+    request_id = _create_request(client, token)
+
+    finance_user = _make_finance_user(db_session)
+    finance_token = create_access_token(subject=str(finance_user.id))
+
+    with patch("app.services.email.smtplib.SMTP", side_effect=Exception("smtp down")):
+        response = client.post(
+            f"/requests/{request_id}/review",
+            json={"action": "approve"},
+            headers=_auth_headers(finance_token),
+        )
+
+    assert response.status_code == 200

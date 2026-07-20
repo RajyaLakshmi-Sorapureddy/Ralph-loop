@@ -16,7 +16,7 @@ from app.schemas import (
     ReviewActionType,
     ReviewRequest,
 )
-from app.services.email import send_new_request_notification
+from app.services.email import send_new_request_notification, send_status_change_notification
 from app.services.storage import save_request_document, validate_upload_batch
 
 router = APIRouter(prefix="/requests", tags=["requests"])
@@ -235,4 +235,12 @@ def review_request(
     )
     db.commit()
     db.refresh(request)
+
+    send_status_change_notification(
+        requester_email=request.requester.email,
+        request_id=request.id,
+        new_status=new_status.value,
+        reason=payload.reason,
+    )
+
     return request

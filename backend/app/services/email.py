@@ -45,3 +45,20 @@ def send_new_request_notification(
         send_email(settings.finance_notification_email, subject, body)
     except Exception:
         logger.exception("Failed to send new-request notification email for request %s", request_id)
+
+
+def send_status_change_notification(
+    requester_email: str, request_id: int, new_status: str, reason: str | None
+) -> None:
+    """Notify the requester that finance changed their request's status.
+
+    Failures are logged and swallowed so they never block the review action.
+    """
+    subject = f"Your reimbursement request #{request_id} was {new_status}"
+    body = f"Your reimbursement request #{request_id} status is now: {new_status}\n"
+    if reason:
+        body += f"\nReason/comment: {reason}\n"
+    try:
+        send_email(requester_email, subject, body)
+    except Exception:
+        logger.exception("Failed to send status-change notification email for request %s", request_id)

@@ -73,3 +73,29 @@ def test_login_rejects_unknown_email_with_generic_error(client: TestClient) -> N
 
     assert known_user_response.status_code == wrong_password_response.status_code == 401
     assert known_user_response.json()["detail"] == wrong_password_response.json()["detail"]
+
+
+def test_get_me_returns_current_user(client: TestClient) -> None:
+    client.post(
+        "/auth/signup",
+        json={"name": "Carol", "email": "carol@example.com", "password": "hunter22"},
+    )
+    login_response = client.post(
+        "/auth/login",
+        json={"email": "carol@example.com", "password": "hunter22"},
+    )
+    token = login_response.json()["access_token"]
+
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["email"] == "carol@example.com"
+    assert body["name"] == "Carol"
+    assert body["role"] == "requester"
+
+
+def test_get_me_requires_authentication(client: TestClient) -> None:
+    response = client.get("/auth/me")
+
+    assert response.status_code == 401

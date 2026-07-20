@@ -27,5 +27,11 @@ class Settings:
     jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
     jwt_expire_minutes: int = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 
+    cors_allowed_origins: list[str] = [
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+        if origin.strip()
+    ]
+
 
 settings = Settings()

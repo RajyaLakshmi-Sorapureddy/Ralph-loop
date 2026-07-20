@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -206,6 +206,60 @@ def download_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
     return FileResponse(document.file_path, filename=document.file_name)
+
+
+@router.post("/{request_id}/resubmit", response_model=RequestDetailResponse)
+def resubmit_request(
+    request_id: int,
+    description: str | None = Form(None),
+    files: list[UploadFile] = File(default_factory=list),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Request:
+    request = _get_request_or_404(db, request_id)
+    if request.requester_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to resubmit this request",
+        )
+
+    if request.status != RequestStatus.more_info_needed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only requests with status 'more_info_needed' can be resubmitted",
+        )
+
+    if description is not None:
+        request.description = description
+
+    if files:
+        existing_count = (
+            db.query(RequestDocument).filter(RequestDocument.request_id == request_id).count()
+        )
+        validated_files = validate_upload_batch(existing_count, files)
+        for filename, content in validated_files:
+            file_path, file_size = save_request_document(request_id, filename, content)
+            db.add(
+                RequestDocument(
+                    request_id=request_id,
+                    file_name=filename,
+                    file_path=file_path,
+                    file_size=file_size,
+                )
+            )
+
+    request.status = RequestStatus.pending
+    db.add(
+        RequestStatusHistory(
+            request_id=request.id,
+            status=RequestStatus.pending,
+            reason="Resubmitted by requester",
+            changed_by_user_id=current_user.id,
+        )
+    )
+    db.commit()
+    db.refresh(request)
+    return request
 
 
 @router.post("/{request_id}/review", response_model=RequestDetailResponse)

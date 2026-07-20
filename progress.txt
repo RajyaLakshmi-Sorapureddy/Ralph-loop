@@ -56,3 +56,13 @@ Started: Mon, Jul 20, 2026  2:04:29 PM
   - See updated "Codebase Patterns" at top of this file for the `get_current_user`/`require_finance_user` dependency pattern — reuse these via `Depends(...)` for every protected endpoint from US-005 onward instead of re-implementing auth/RBAC checks per router.
   - Dependency functions with `Depends(...)` default args can be unit tested by calling them directly with hand-built arguments (e.g. `HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)`, a `User` instance, or the `db_session` fixture) — no need for dedicated test-only endpoints.
 ---
+
+## Mon, Jul 20, 2026 - US-005
+- Implemented `POST /requests`: accepts `amount`/`currency`/`category`/`expense_date`/`description` from the authenticated requester (via `Depends(get_current_user)`), inserts a `Request` row with `status='pending'` and `requester_id` set to the logged-in user, and returns the created request (id, status, and full fields) with 201. Missing/invalid fields are rejected by Pydantic validation (422) via `RequestCreate` (amount must be > 0, currency/category/description non-empty).
+- Files changed: `backend/app/schemas.py` (added `RequestCreate`/`RequestResponse`), `backend/app/routers/requests.py` (new), `backend/app/main.py` (registers requests router), `backend/tests/test_requests.py` (new: 3 tests covering happy path, missing required field, and unauthenticated request).
+- Verified: `pytest tests/` → 14 passed (11 existing + 3 new) against the `finance_invoice_approval_test` DB. `ruff check app migrations tests` and `mypy app` both pass with zero issues.
+- **Learnings for future iterations:**
+  - New protected endpoints follow the pattern: `Depends(get_current_user)` for the current user, `Depends(get_db)` for the session — see `app/routers/requests.py` for a template of a simple authenticated POST endpoint that inserts and returns a model.
+  - `RequestResponse` uses `from_attributes=True` like `UserResponse`; `Decimal` fields serialize as JSON strings (e.g. `"125.50"`) through Pydantic — tests should compare against string amounts, not floats.
+  - US-006 (document upload) will add `POST /requests/{id}/documents` and `GET /requests/{id}/documents/{doc_id}` to the same `app/routers/requests.py` router; it needs the `upload_dir`/max file size/count settings already in `app/config.py` (from US-002) and should verify the request is owned by the current user (404/403 for others) before accepting uploads.
+---

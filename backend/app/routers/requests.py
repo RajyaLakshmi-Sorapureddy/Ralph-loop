@@ -6,6 +6,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Request, RequestDocument, User, UserRole
 from app.schemas import RequestCreate, RequestDocumentResponse, RequestResponse
+from app.services.email import send_new_request_notification
 from app.services.storage import save_request_document, validate_upload_batch
 
 router = APIRouter(prefix="/requests", tags=["requests"])
@@ -35,6 +36,15 @@ def create_request(
     db.add(request)
     db.commit()
     db.refresh(request)
+
+    send_new_request_notification(
+        requester_name=current_user.name,
+        amount=str(request.amount),
+        currency=request.currency,
+        category=request.category,
+        request_id=request.id,
+    )
+
     return request
 
 

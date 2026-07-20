@@ -44,4 +44,15 @@ export const api = {
     ),
   postForm: <T,>(path: string, formData: FormData, token?: string | null) =>
     request<T>(path, { method: 'POST', body: formData }, token),
+  getBlob: async (path: string, token?: string | null): Promise<Blob> => {
+    const headers = new Headers();
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    const response = await fetch(`${API_BASE_URL}${path}`, { headers });
+    if (!response.ok) {
+      throw new ApiError(response.statusText, response.status);
+    }
+    return response.blob();
+  },
 };

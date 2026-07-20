@@ -279,3 +279,62 @@ button {
   background: #dbeafe;
   color: #1e40af;
 }
+
+.request-detail section {
+  margin-top: 24px;
+}
+
+.request-detail h2 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.request-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 12px 24px;
+  margin: 0;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.request-detail-fields dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5b6270;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.request-detail-fields dd {
+  margin: 4px 0 0;
+}
+
+.request-detail-description {
+  grid-column: 1 / -1;
+}
+
+.document-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.document-meta {
+  color: #5b6270;
+  font-size: 13px;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  color: var(--accent-hover);
+}

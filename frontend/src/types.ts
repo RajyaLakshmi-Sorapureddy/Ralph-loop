@@ -35,3 +35,16 @@ export interface RequestDocument {
   file_size: number;
   uploaded_at: string;
 }
+
+export interface RequestStatusHistoryEntry {
+  id: number;
+  status: RequestStatus;
+  reason: string | null;
+  changed_by_user_id: number;
+  changed_at: string;
+}
+
+export interface RequestDetail extends ReimbursementRequest {
+  documents: RequestDocument[];
+  status_history: RequestStatusHistoryEntry[];
+}
